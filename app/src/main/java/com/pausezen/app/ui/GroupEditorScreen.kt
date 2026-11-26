@@ -442,7 +442,7 @@ fun GroupEditorScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "Daily open limit",
+                            text = "Daily open limit (per app)",
                             style = MaterialTheme.typography.titleSmall,
                             color = PauseZenPalette.TextSecondary
                         )
@@ -462,7 +462,7 @@ fun GroupEditorScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "Daily screen time limit",
+                            text = "Daily screen time limit (per app)",
                             style = MaterialTheme.typography.titleSmall,
                             color = PauseZenPalette.TextSecondary
                         )

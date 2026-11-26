@@ -118,12 +118,12 @@ class AppGuardAccessibilityService : AccessibilityService() {
                     }
                 }
 
-                // Check if active app's group has exceeded its daily screen time limit.
+                // Check if this individual app has exceeded its group's daily screen time limit.
                 val config = currentConfig
                 val group = config.findGroupForPackage(activePkg) ?: continue
                 if (group.dailyTimeLimitMinutes > 0) {
-                    val totalGroupTimeMs = computeGroupScreenTimeMs(group, activePkg, activeElapsedMs)
-                    if (totalGroupTimeMs >= group.dailyTimeLimitMs) {
+                    val appTimeMs = computeTargetScreenTimeMs(activePkg, activeElapsedMs)
+                    if (appTimeMs >= group.dailyTimeLimitMs) {
                         val flushed = DailyOpenTracker.shared.checkpointSession(nowMs, clearCurrent = true)
                         if (flushed != null) {
                             dailyStatsRepository.addScreenTimeMs(
@@ -168,11 +168,11 @@ class AppGuardAccessibilityService : AccessibilityService() {
                 return
             }
 
-            // If this app is within its unlock grace period, still enforce daily screen time limit!
+            // If this app is within its unlock grace period, still enforce its individual daily screen time limit.
             val activeGroup = config.findGroupForPackage(pkg)
             if (activeGroup != null && activeGroup.dailyTimeLimitMinutes > 0) {
-                val totalGroupTimeMs = computeGroupScreenTimeMs(activeGroup, pkg, 0L)
-                if (totalGroupTimeMs >= activeGroup.dailyTimeLimitMs) {
+                val appTimeMs = computeTargetScreenTimeMs(pkg, 0L)
+                if (appTimeMs >= activeGroup.dailyTimeLimitMs) {
                     val decision = InterceptionDecision.ShowPause(
                         targetKey = InterceptionStateMachine.appTargetKey(pkg),
                         packageName = pkg,
@@ -277,34 +277,12 @@ class AppGuardAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun computeGroupOpensToday(group: AppGroup): Int {
-        val pkgOpens = group.packages.sumOf {
-            todayOpens[InterceptionStateMachine.appTargetKey(it)] ?: 0
-        }
-        val feedOpens = group.featureRuleIds.sumOf {
-            todayOpens[InterceptionStateMachine.featureTargetKey(it)] ?: 0
-        }
-        return pkgOpens + feedOpens
-    }
-
-    private fun computeGroupScreenTimeMs(
-        group: AppGroup,
-        activePkg: String? = null,
+    private fun computeTargetScreenTimeMs(
+        packageName: String,
         activeElapsedMs: Long = 0L
     ): Long {
-        val trackedPackages = if (group.packages.isNotEmpty()) {
-            group.packages
-        } else {
-            group.featureRuleIds
-                .mapNotNull { InAppFeatureCatalog.findById(it) }
-                .flatMap { it.hostPackages }
-                .toSet()
-        }
-        val storedMs = trackedPackages.sumOf {
-            todayScreenTimeMs[InterceptionStateMachine.appTargetKey(it)] ?: 0L
-        }
-        val extra = if (activePkg != null && activePkg in trackedPackages) activeElapsedMs else 0L
-        return storedMs + extra
+        val storedMs = todayScreenTimeMs[InterceptionStateMachine.appTargetKey(packageName)] ?: 0L
+        return storedMs + activeElapsedMs
     }
 
     private fun launchPauseOverlay(
@@ -320,15 +298,16 @@ class AppGuardAccessibilityService : AccessibilityService() {
         }
 
         val group = decision.group
-        val groupOpens = computeGroupOpensToday(group)
-        val groupTimeMs = computeGroupScreenTimeMs(group, decision.packageName, activeElapsedMs)
+        // Limits apply individually per app or per in-app feed within the group.
+        val targetOpens = todayOpens[decision.targetKey] ?: 0
+        val targetTimeMs = computeTargetScreenTimeMs(decision.packageName, activeElapsedMs)
 
         val limitBlockReason = when {
-            group.dailyTimeLimitMinutes > 0 && groupTimeMs >= group.dailyTimeLimitMs -> {
+            group.dailyTimeLimitMinutes > 0 && targetTimeMs >= group.dailyTimeLimitMs -> {
                 "Daily screen time limit reached (${group.dailyTimeLimitMinutes}m today)"
             }
-            group.dailyOpenLimit > 0 && groupOpens >= group.dailyOpenLimit -> {
-                "Daily open limit reached ($groupOpens / ${group.dailyOpenLimit} opens today)"
+            group.dailyOpenLimit > 0 && targetOpens >= group.dailyOpenLimit -> {
+                "Daily open limit reached ($targetOpens / ${group.dailyOpenLimit} opens today)"
             }
             else -> null
         }
@@ -350,11 +329,11 @@ class AppGuardAccessibilityService : AccessibilityService() {
             putExtra(PauseOverlayActivity.EXTRA_BREATHING_ENABLED, config.breathingCueEnabled)
             putExtra(PauseOverlayActivity.EXTRA_BREATHING_PATTERN, config.breathingPattern.id)
             putExtra(PauseOverlayActivity.EXTRA_BREATHING_STYLE, config.breathingStyle.id)
-            putExtra(PauseOverlayActivity.EXTRA_TODAY_OPEN_COUNT, todayOpens[decision.targetKey] ?: 0)
+            putExtra(PauseOverlayActivity.EXTRA_TODAY_OPEN_COUNT, targetOpens)
             putExtra(PauseOverlayActivity.EXTRA_LIMIT_BLOCK_REASON, limitBlockReason)
-            putExtra(PauseOverlayActivity.EXTRA_GROUP_OPENS_TODAY, groupOpens)
+            putExtra(PauseOverlayActivity.EXTRA_GROUP_OPENS_TODAY, targetOpens)
             putExtra(PauseOverlayActivity.EXTRA_GROUP_OPEN_LIMIT, group.dailyOpenLimit)
-            putExtra(PauseOverlayActivity.EXTRA_GROUP_TIME_TODAY_MS, groupTimeMs)
+            putExtra(PauseOverlayActivity.EXTRA_GROUP_TIME_TODAY_MS, targetTimeMs)
             putExtra(PauseOverlayActivity.EXTRA_GROUP_TIME_LIMIT_MINUTES, group.dailyTimeLimitMinutes)
         }
         startActivity(intent)

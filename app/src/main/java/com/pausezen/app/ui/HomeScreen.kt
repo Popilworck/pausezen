@@ -456,12 +456,12 @@ private fun AppGroupCard(
                         text = buildString {
                             append("${group.pauseDurationSeconds}s pause")
                             if (group.dailyOpenLimit > 0) {
-                                append("  ·  $groupOpensToday/${group.dailyOpenLimit} opens")
+                                append("  ·  ${group.dailyOpenLimit} opens/app")
                             } else {
                                 append("  ·  ${formatOpensToday(groupOpensToday)}")
                             }
                             if (group.dailyTimeLimitMinutes > 0) {
-                                append("  ·  ${formatDurationShort(groupTimeMsToday)}/${group.dailyTimeLimitMinutes}m")
+                                append("  ·  ${group.dailyTimeLimitMinutes}m/app")
                             } else if (groupTimeMsToday >= 60_000L) {
                                 append("  ·  ${formatDurationShort(groupTimeMsToday)}")
                             }
