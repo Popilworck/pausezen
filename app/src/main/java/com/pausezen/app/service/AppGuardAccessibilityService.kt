@@ -15,6 +15,7 @@ import android.view.inputmethod.InputMethodManager
 import com.pausezen.app.PauseOverlayActivity
 import com.pausezen.app.core.DailyOpenTracker
 import com.pausezen.app.core.InAppFeatureCatalog
+import com.pausezen.app.core.InstagramReelsContextTracker
 import com.pausezen.app.core.InterceptionDecision
 import com.pausezen.app.core.InterceptionStateMachine
 import com.pausezen.app.core.WindowNodeInspector
@@ -36,6 +37,7 @@ class AppGuardAccessibilityService : AccessibilityService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val reelsContextTracker = InstagramReelsContextTracker()
     private lateinit var dailyStatsRepository: DailyStatsRepository
 
     @Volatile
@@ -193,14 +195,60 @@ class AppGuardAccessibilityService : AccessibilityService() {
             flushPreviousDuration(transition.previousPackage, transition.previousDurationMs)
         }
 
+        if (pkg != InstagramReelsContextTracker.INSTAGRAM_PACKAGE &&
+            pkg != packageName &&
+            pkg !in imePackages &&
+            pkg != "com.android.systemui" &&
+            pkg != "android"
+        ) {
+            reelsContextTracker.reset()
+        }
+
         // Only inspect window view IDs when a user-enabled group has an in-app rule for this package.
-        if (InAppFeatureCatalog.rulesForPackage(pkg, config.allActiveFeatureRuleIds).isNotEmpty()) {
+        val enabledRulesForPkg = InAppFeatureCatalog.rulesForPackage(pkg, config.allActiveFeatureRuleIds)
+        if (enabledRulesForPkg.isNotEmpty()) {
             val rootNode = runCatching { rootInActiveWindow }.getOrNull() ?: return
             val inspector = AndroidWindowNodeInspector(rootNode)
+
+            // If Instagram Reels is enabled and "Allow Reels sent in DMs" is on, check whether
+            // the user is watching a single DM-sent Reel without having scrolled yet.
+            var effectiveConfig = config
+            if (pkg == InstagramReelsContextTracker.INSTAGRAM_PACKAGE &&
+                InAppFeatureCatalog.INSTAGRAM_REELS.id in config.allActiveFeatureRuleIds
+            ) {
+                val isDmVisible = InstagramReelsContextTracker.DM_VIEW_IDS.any {
+                    inspector.hasVisibleViewId(it)
+                }
+                val isReelsTabSelected = InAppFeatureCatalog.INSTAGRAM_REELS.selectedTabViewIds.any {
+                    inspector.hasSelectedViewId(it)
+                }
+                val isReelsViewerVisible = InAppFeatureCatalog.INSTAGRAM_REELS.matchingViewIds.any {
+                    inspector.hasVisibleViewId(it)
+                }
+                val isScrollEvent = event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED
+
+                val allowWatching = reelsContextTracker.shouldAllowWatching(
+                    nowMs = nowMs,
+                    allowDmReels = config.allowDmReels,
+                    isDmVisible = isDmVisible,
+                    isReelsTabSelected = isReelsTabSelected,
+                    isReelsViewerVisible = isReelsViewerVisible,
+                    isScrollEvent = isScrollEvent
+                )
+                if (allowWatching && isReelsViewerVisible) {
+                    // Temporarily suppress only the INSTAGRAM_REELS rule while watching this single DM Reel.
+                    effectiveConfig = config.copy(
+                        appGroups = config.appGroups.map { g ->
+                            g.copy(featureRuleIds = g.featureRuleIds - InAppFeatureCatalog.INSTAGRAM_REELS.id)
+                        }
+                    )
+                }
+            }
+
             val featureDecision = InterceptionStateMachine.shared.evaluateInAppFeature(
                 packageName = pkg,
                 nowMs = nowMs,
-                config = config,
+                config = effectiveConfig,
                 inspector = inspector,
                 ignoredPackages = imePackages
             )

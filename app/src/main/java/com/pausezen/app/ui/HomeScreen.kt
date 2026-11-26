@@ -99,6 +99,7 @@ fun HomeScreen(
     onUpdateBreathing: (Boolean) -> Unit,
     onUpdateBreathingPattern: (BreathingPattern) -> Unit,
     onUpdateBreathingStyle: (BreathingStyle) -> Unit,
+    onUpdateAllowDmReels: (Boolean) -> Unit,
     onPreviewOverlay: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -317,6 +318,7 @@ fun HomeScreen(
                     onUpdateBreathing = onUpdateBreathing,
                     onUpdateBreathingPattern = onUpdateBreathingPattern,
                     onUpdateBreathingStyle = onUpdateBreathingStyle,
+                    onUpdateAllowDmReels = onUpdateAllowDmReels,
                     onPreviewOverlay = onPreviewOverlay
                 )
             }
@@ -1051,6 +1053,7 @@ private fun SettingsTab(
     onUpdateBreathing: (Boolean) -> Unit,
     onUpdateBreathingPattern: (BreathingPattern) -> Unit,
     onUpdateBreathingStyle: (BreathingStyle) -> Unit,
+    onUpdateAllowDmReels: (Boolean) -> Unit,
     onPreviewOverlay: () -> Unit
 ) {
     Column(
@@ -1060,6 +1063,45 @@ private fun SettingsTab(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = PauseZenPalette.Surface,
+            border = BorderStroke(1.dp, PauseZenPalette.Hairline)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Allow Reels sent in DMs",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = PauseZenPalette.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Watch a Reel someone sent you in DMs, and pause as soon as you scroll to the next one",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PauseZenPalette.TextSecondary
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Switch(
+                    checked = config.allowDmReels,
+                    onCheckedChange = onUpdateAllowDmReels,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = PauseZenPalette.OnAccent,
+                        checkedTrackColor = PauseZenPalette.Accent,
+                        uncheckedThumbColor = PauseZenPalette.TextSecondary,
+                        uncheckedTrackColor = PauseZenPalette.SurfaceControl,
+                        uncheckedBorderColor = PauseZenPalette.Hairline
+                    )
+                )
+            }
+        }
+
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = PauseZenPalette.Surface,

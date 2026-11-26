@@ -18,7 +18,8 @@ data class GuardConfig(
     val appGroups: List<AppGroup> = emptyList(),
     val breathingCueEnabled: Boolean = true,
     val breathingPattern: BreathingPattern = BreathingPattern.CALM,
-    val breathingStyle: BreathingStyle = BreathingStyle.BLOOM
+    val breathingStyle: BreathingStyle = BreathingStyle.BLOOM,
+    val allowDmReels: Boolean = true
 ) {
     val activeGroups: List<AppGroup>
         get() = appGroups.filter { it.enabled }
@@ -48,6 +49,7 @@ class PreferencesRepository(private val context: Context) {
         val BREATHING_CUE_ENABLED = booleanPreferencesKey("breathing_cue_enabled")
         val BREATHING_PATTERN = stringPreferencesKey("breathing_pattern")
         val BREATHING_STYLE = stringPreferencesKey("breathing_style")
+        val ALLOW_DM_REELS = booleanPreferencesKey("allow_dm_reels")
 
         // Legacy v0 keys (auto-migrated into a starter group on read if present)
         val LEGACY_GUARDED_PACKAGES = stringSetPreferencesKey("guarded_packages")
@@ -69,7 +71,8 @@ class PreferencesRepository(private val context: Context) {
             appGroups = groups,
             breathingCueEnabled = prefs[Keys.BREATHING_CUE_ENABLED] ?: true,
             breathingPattern = BreathingPattern.fromId(prefs[Keys.BREATHING_PATTERN]),
-            breathingStyle = BreathingStyle.fromId(prefs[Keys.BREATHING_STYLE])
+            breathingStyle = BreathingStyle.fromId(prefs[Keys.BREATHING_STYLE]),
+            allowDmReels = prefs[Keys.ALLOW_DM_REELS] ?: true
         )
     }
 
@@ -117,6 +120,12 @@ class PreferencesRepository(private val context: Context) {
     suspend fun setBreathingStyle(style: BreathingStyle) {
         context.dataStore.edit { prefs ->
             prefs[Keys.BREATHING_STYLE] = style.id
+        }
+    }
+
+    suspend fun setAllowDmReels(allow: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.ALLOW_DM_REELS] = allow
         }
     }
 

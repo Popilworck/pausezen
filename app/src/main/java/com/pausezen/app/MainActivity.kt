@@ -96,6 +96,9 @@ class MainActivity : ComponentActivity() {
                     onUpdateBreathingStyle = { style ->
                         scope.launch { repository.setBreathingStyle(style) }
                     },
+                    onUpdateAllowDmReels = { allow ->
+                        scope.launch { repository.setAllowDmReels(allow) }
+                    },
                     onPreviewOverlay = {
                         val sampleGroup = config.appGroups.firstOrNull()
                         val previewIntent = Intent(this, PauseOverlayActivity::class.java).apply {
