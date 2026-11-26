@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PauseZen" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF111110</item>
+        <item name="android:statusBarColor">#FF111110</item>
+        <item name="android:navigationBarColor">#FF191817</item>
+    </style>
+
+    <style name="Theme.PauseZen.Overlay" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF111110</item>
+        <item name="android:statusBarColor">#FF111110</item>
+        <item name="android:navigationBarColor">#FF111110</item>
+    </style>
+</resources>

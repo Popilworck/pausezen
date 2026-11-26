@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PauseZen</string>
+    <string name="accessibility_service_label">PauseZen Mindful Guard</string>
+    <string name="accessibility_service_description">Detects when you open a guarded app or short-form feed (like Instagram Reels or YouTube Shorts) to show a mindful pause screen. 100% offline with no internet permission.</string>
+</resources>
